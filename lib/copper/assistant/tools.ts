@@ -11,6 +11,7 @@ import {
   type ProductId,
 } from "@/lib/copper/catalog";
 import { readInventory } from "@/lib/copper/inventory";
+import { searchDocuments, type SearchResult } from "@/lib/copper/search";
 
 export type ProductList = {
   products: {
@@ -177,6 +178,33 @@ export async function checkAvailability(
   };
 }
 
+export type DocumentSearch =
+  | { status: "ok"; query: string; results: SearchResult[] }
+  | { status: "unavailable"; message: string };
+
+export const searchDocumentsInput = z.object({
+  query: z
+    .string()
+    .min(2)
+    .max(300)
+    .describe("The customer's question, in plain words"),
+});
+
+/** search_documents: the passages of the company documents closest to a question. */
+export async function searchCompanyDocuments(
+  query: string,
+): Promise<DocumentSearch> {
+  try {
+    return { status: "ok", query, results: await searchDocuments(query) };
+  } catch {
+    return {
+      status: "unavailable",
+      message:
+        "The documents can't be searched right now. Please try again soon.",
+    };
+  }
+}
+
 export const copperTools = {
   get_products: tool({
     description:
@@ -200,5 +228,11 @@ export const copperTools = {
       "Checks today's stock for a Copper product, for every color or just one.",
     inputSchema: checkAvailabilityInput,
     execute: async (input) => checkAvailability(input),
+  }),
+  search_documents: tool({
+    description:
+      "Searches Copper's user guides, Terms and Conditions and Copper Plus FAQ. Returns the closest passages, each with its document title and page number. Use it for setup, troubleshooting, error codes, returns, warranty, privacy and Copper Plus questions.",
+    inputSchema: searchDocumentsInput,
+    execute: async ({ query }) => searchCompanyDocuments(query),
   }),
 };

@@ -605,6 +605,32 @@ function ToolOutput({ name, output }: { name: string; output: any }) {
       </div>
     );
   }
+  if (name === "search_documents" && output?.status) {
+    if (output.status === "unavailable")
+      return <p className="text-xs">{output.message}</p>;
+    return (
+      <ol className="space-y-2 text-xs">
+        {output.results.map((r: any) => (
+          <li key={`${r.documentId}-${r.page}-${r.score}`}>
+            <div className="flex items-baseline justify-between gap-2">
+              <a
+                href={r.url}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold underline-offset-2 hover:underline"
+              >
+                {r.title}, page {r.page}
+              </a>
+              <span className="text-muted-foreground font-mono">
+                {Math.round(r.score * 100)}% match
+              </span>
+            </div>
+            <p className="text-muted-foreground line-clamp-3">{r.text}</p>
+          </li>
+        ))}
+      </ol>
+    );
+  }
   // A tool without its own layout yet: show what came back as plain text.
   return (
     <pre className="max-h-48 overflow-auto text-xs whitespace-pre-wrap">

@@ -1,5 +1,5 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { generateText, Output, streamText } from "ai";
+import { embed, generateText, Output, streamText } from "ai";
 import type { z } from "zod";
 import { defaultModel, MODELS, type ModelId } from "@/lib/ai/models";
 import { costUsd } from "@/lib/ai/pricing";
@@ -36,7 +36,8 @@ type TextOptions = DistributiveOmit<
 export type AiCallRow = {
   module: number;
   feature: string;
-  model: ModelId;
+  /** A text model's id, or the embedding model's id for `callEmbed`. */
+  model: string;
   input_tokens: number | null;
   output_tokens: number | null;
   cost_usd: number | null;
@@ -45,15 +46,20 @@ export type AiCallRow = {
   created_at: string;
 };
 
-function languageModel(model: ModelId) {
+function googleProvider() {
   const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim();
   if (!googleKey) throw new AiNotConfiguredError();
+  return createGoogleGenerativeAI({ apiKey: googleKey });
+}
+
+function languageModel(model: ModelId) {
+  const google = googleProvider();
   const entry = MODELS.find((m) => m.id === model);
   const id =
     entry && "googleId" in entry
       ? entry.googleId
       : model.slice("google/".length);
-  return createGoogleGenerativeAI({ apiKey: googleKey })(id);
+  return google(id);
 }
 
 /** Prints one line per model call, so the cost and time are visible. */
@@ -145,6 +151,50 @@ export function callStream(info: CallInfo, options: StreamOptions) {
     onFinish: ({ totalUsage }) => logCall(row(true, totalUsage)),
     onError: () => logCall(row(false)),
   });
+}
+
+/** The embedding model, and how many numbers it gives for each text. */
+export const EMBEDDING_MODEL = "gemini-embedding-001";
+export const EMBEDDING_DIMENSIONS = 768;
+
+/**
+ * Turns one text into a list of numbers (an embedding), so texts with similar
+ * meaning end up close together. Logged to ai_calls like every other call.
+ * Use "RETRIEVAL_QUERY" for a question and "RETRIEVAL_DOCUMENT" for a passage.
+ * Example: callEmbed({ module: 3, feature: "document-search" }, question)
+ */
+export async function callEmbed(
+  info: Omit<CallInfo, "model">,
+  value: string,
+  taskType: "RETRIEVAL_QUERY" | "RETRIEVAL_DOCUMENT" = "RETRIEVAL_QUERY",
+): Promise<number[]> {
+  const google = googleProvider();
+  const started = performance.now();
+  const row = (ok: boolean, tokens?: number): AiCallRow => ({
+    module: info.module,
+    feature: info.feature,
+    model: EMBEDDING_MODEL,
+    input_tokens: tokens ?? null,
+    output_tokens: null,
+    cost_usd: null,
+    latency_ms: Math.round(performance.now() - started),
+    ok,
+    created_at: new Date().toISOString(),
+  });
+  try {
+    const result = await embed({
+      model: google.embedding(EMBEDDING_MODEL),
+      value,
+      providerOptions: {
+        google: { taskType, outputDimensionality: EMBEDDING_DIMENSIONS },
+      },
+    });
+    await logCall(row(true, result.usage?.tokens));
+    return result.embedding;
+  } catch (error) {
+    await logCall(row(false));
+    throw error;
+  }
 }
 
 // Asking for some thinking (rather than letting the model decide) is what

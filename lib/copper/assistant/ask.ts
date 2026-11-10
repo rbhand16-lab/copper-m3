@@ -116,7 +116,9 @@ export async function askCopper({
       }
       progress.status = "done";
       if (!progress.reply.trim()) progress.reply = SORRY;
-    } catch {
+    } catch (error) {
+      // The panel only shows a friendly sorry, so say what went wrong here.
+      console.error("[ask-copper]", error);
       progress.status = "error";
       if (!progress.reply.trim()) progress.reply = SORRY;
     }
