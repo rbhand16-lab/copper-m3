@@ -76,8 +76,34 @@ function toPassages(pageText) {
   return passages;
 }
 
-async function embedBatch(texts) {
-  const response = await fetch(
+const MAX_RETRIES = 6;
+
+/** Embeds a batch. On the free tier's per-minute limit (429), waits and retries. */
+async function embedBatch(texts, attempt = 0) {
+  const response = await fetchBatch(texts);
+  if (response.status === 429 && attempt < MAX_RETRIES) {
+    const body = await response.json().catch(() => ({}));
+    // Google says how long to wait: "Please retry in 7.35s."
+    const said = /retry in ([\d.]+)s/i.exec(body.error?.message ?? "");
+    const seconds = Math.min(65, (said ? Number(said[1]) : 15) + 2);
+    console.log(
+      `Rate limit reached. Waiting ${Math.ceil(seconds)}s, then trying again…`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+    return embedBatch(texts, attempt + 1);
+  }
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(
+      `Embedding request failed (${response.status}): ${body.error?.message ?? "no message"}`,
+    );
+  }
+  const { embeddings } = await response.json();
+  return embeddings.map((e) => e.values.map((v) => Number(v.toFixed(6))));
+}
+
+function fetchBatch(texts) {
+  return fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:batchEmbedContents`,
     {
       method: "POST",
@@ -92,14 +118,6 @@ async function embedBatch(texts) {
       }),
     },
   );
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw new Error(
-      `Embedding request failed (${response.status}): ${body.error?.message ?? "no message"}`,
-    );
-  }
-  const { embeddings } = await response.json();
-  return embeddings.map((e) => e.values.map((v) => Number(v.toFixed(6))));
 }
 
 const passages = [];

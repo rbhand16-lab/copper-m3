@@ -383,7 +383,7 @@ function Answer({
             </div>
           )}
           <p className="text-sm whitespace-pre-wrap">
-            {reply}
+            <InlineMarkdown text={reply} />
             {working && (
               <span className="bg-primary ml-0.5 inline-block h-4 w-0.5 animate-pulse align-middle" />
             )}
@@ -605,7 +605,7 @@ function ToolOutput({ name, output }: { name: string; output: any }) {
       </div>
     );
   }
-  if (name === "search_documents" && output?.status) {
+  if (name === "search_docs" && output?.status) {
     if (output.status === "unavailable")
       return <p className="text-xs">{output.message}</p>;
     return (

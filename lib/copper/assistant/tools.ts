@@ -182,7 +182,7 @@ export type DocumentSearch =
   | { status: "ok"; query: string; results: SearchResult[] }
   | { status: "unavailable"; message: string };
 
-export const searchDocumentsInput = z.object({
+export const searchDocsInput = z.object({
   query: z
     .string()
     .min(2)
@@ -190,10 +190,8 @@ export const searchDocumentsInput = z.object({
     .describe("The customer's question, in plain words"),
 });
 
-/** search_documents: the passages of the company documents closest to a question. */
-export async function searchCompanyDocuments(
-  query: string,
-): Promise<DocumentSearch> {
+/** search_docs: the passages of the company documents closest to a question. */
+export async function searchDocs(query: string): Promise<DocumentSearch> {
   try {
     return { status: "ok", query, results: await searchDocuments(query) };
   } catch {
@@ -229,10 +227,10 @@ export const copperTools = {
     inputSchema: checkAvailabilityInput,
     execute: async (input) => checkAvailability(input),
   }),
-  search_documents: tool({
+  search_docs: tool({
     description:
-      "Searches Copper's user guides, Terms and Conditions and Copper Plus FAQ. Returns the closest passages, each with its document title and page number. Use it for setup, troubleshooting, error codes, returns, warranty, privacy and Copper Plus questions.",
-    inputSchema: searchDocumentsInput,
-    execute: async ({ query }) => searchCompanyDocuments(query),
+      "Searches Copper's user guides, Terms and Conditions and Copper Plus FAQ. Returns the closest passages, each with its document title and page number. Use it for setup, troubleshooting, error codes, warranty, returns, refunds, privacy and other policy questions.",
+    inputSchema: searchDocsInput,
+    execute: async ({ query }) => searchDocs(query),
   }),
 };

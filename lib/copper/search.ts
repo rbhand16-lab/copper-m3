@@ -20,7 +20,7 @@ export type SearchResult = {
 };
 
 /** How many passages a search returns. */
-export const TOP_K = 4;
+export const TOP_K = 5;
 
 /** Cosine similarity of two same-length vectors. */
 export function cosine(a: readonly number[], b: readonly number[]): number {

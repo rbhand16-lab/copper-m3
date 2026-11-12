@@ -1,7 +1,7 @@
 {
   "model": "gemini-embedding-001",
   "dimensions": 768,
-  "createdAt": "2026-11-05T22:54:04.644Z",
+  "createdAt": "2026-11-12T21:55:02.528Z",
   "passages": [
     {
       "id": "copper-home-user-guide-p1-1",
